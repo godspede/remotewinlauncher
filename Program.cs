@@ -44,6 +44,10 @@ namespace remotewinlauncher
 				});
 
 			var builder = WebApplication.CreateBuilder();
+			builder.Configuration
+				.SetBasePath(Directory.GetCurrentDirectory())
+				.AddJsonFile("appsettings.json")
+				.AddEnvironmentVariables();
 			var app = builder.Build();
 			Configuration = app.Configuration;
 
