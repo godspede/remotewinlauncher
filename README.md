@@ -10,3 +10,5 @@ Here's an example that will launch program from a batch file (in this case, a st
 	remotewinlauncher.exe -s secret -p "C:\repo\launch_stable-diffusion-webui.bat" -t "stable diffusion webui" -h
 
 In that example, the .bat is using this command to ensure that the window's title is set correctly: `TITLE stable diffusion webui`
+
+Once that's up, by you can either visit https://localhost:5002/launch/secret to launch the configured program, or https://localhost:5002/kill/secret to kill it if it's running
