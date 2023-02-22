@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 
 /// <summary>
-/// 
+/// Useful for <OutputType>Exe</OutputType> in csproj
 /// </summary>
 public static class ConsoleExtension
 {
