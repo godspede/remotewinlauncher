@@ -10,8 +10,9 @@
   "profiles": {
     "remotewinlauncher": {
       "commandName": "Project",
-      "commandLineArgs": "-s secret -p \"C:\\repo\\launch_stable-diffusion-webui.bat\"",
+      "commandLineArgs": "-s secret -p \"C:\\repo\\launch_stable-diffusion-webui.bat\" -t \"stable diffusion webui\"",
       "launchBrowser": true,
+      "launchUrl": "http://localhost:5001/launch/",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
