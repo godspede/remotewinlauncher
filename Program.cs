@@ -12,34 +12,35 @@ namespace remotewinlauncher
             var app = builder.Build();
             Configuration = app.Configuration;
 
-            app.MapGet("/", async () =>
-            {
-                var cts = new CancellationTokenSource();
-                Console.CancelKeyPress += (s, e) =>
-                {
-                    cts.Cancel();
-                    e.Cancel = true;
-                };
+            app.MapGet("/", HandleIt);
+            app.MapGet("/{secret}", HandleIt);
 
-                return await Do(cts.Token);
-            });
-
-
-            //Consoler.ShowConsole();
             Console.WriteLine($"Launching on {Configuration["Urls"]}");
+            ConsoleExtension.Hide();
 
             app.Run();
         }
 
-        static async Task<string> Do(CancellationToken ct)
+        static async Task<string> HandleIt(string? secret = null)
+        {
+            var cts = new CancellationTokenSource();
+            Console.CancelKeyPress += (s, e) =>
+            {
+                cts.Cancel();
+                e.Cancel = true;
+            };
+            return await Do(cts.Token, secret);
+        }
+
+        static async Task<string> Do(CancellationToken ct, string? clientsecret)
         {
             var regkey = Configuration["RegKey"];
             var key = Registry.CurrentUser.OpenSubKey(regkey);
-            var secret = key?.GetValue("Secret")?.ToString();
-            if (String.IsNullOrEmpty(secret))
+            var regsecret = key?.GetValue("Secret")?.ToString();
+            if (String.IsNullOrEmpty(regsecret))
             {
-                Consoler.ShowConsole();
-                Console.WriteLine("Unconfigured!");
+                ConsoleExtension.Show();
+                Console.WriteLine($"Unconfigured!");
                 //TODO: collect secret and save to registry
                 return "Configuration hasn't been initialized!";
             }
