@@ -1,50 +1,71 @@
+using CommandLine;
 using Microsoft.Win32;
 
 namespace remotewinlauncher
 {
+        public class Options
+        {
+            [Option('s', "secret", Required = true, HelpText = "The auth secret used at <url>/<secret> to kick off the program.")]
+            public string Secret { get; set; }
+            [Option('p', "path", Required = true, HelpText = "The path of the program to launch.")]
+            public string Path { get; set; }
+        }
     public class Program
     {
         static IConfiguration? configuration;
         static IConfiguration Configuration { get => configuration ?? throw new Exception(); set => configuration = value; }
-        static string RegKey => Configuration["RegKey"];
+
+        static string Secret { get; set; }
+        static string Path { get; set; }
 
         public static async Task Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
+            Parser.Default.ParseArguments<Options>(args)
+                .WithParsed<Options>(o =>
+                {
+                    Secret = o.Secret;
+                    Path = o.Path;
+                })
+                .WithNotParsed<Options>((e) =>
+				{
+                    ConsoleExtension.Show();
+                    Console.WriteLine("Missing arguments! Press any key to terminate.");
+                    Console.ReadLine();
+                    Environment.Exit(0);
+				});
+
+            var builder = WebApplication.CreateBuilder();
             var app = builder.Build();
             Configuration = app.Configuration;
+
+
+            Console.WriteLine($"Launching on {Configuration["Urls"]}{Environment.NewLine}");
+            string sampleUrl = Configuration["Urls"]?.Split(';')?[0] ?? String.Empty;
+            Console.WriteLine($"Use your secret to launch the program, for example:{Environment.NewLine}{sampleUrl}/<secret>");
+            ConsoleExtension.Hide();
 
             app.MapGet("/", HandleIt);
             app.MapGet("/{secret}", HandleIt);
 
-            Console.WriteLine($"Launching on {Configuration["Urls"]}");
-            ConsoleExtension.Hide();
-
-            if (String.IsNullOrEmpty(Secret))
-			{
-                await PromptSecret();
-			}
-
             await app.RunAsync();
-        }
-        static string? Secret
-        {
-            get => Registry.CurrentUser.OpenSubKey(RegKey)?.GetValue("Secret")?.ToString();
-            set
-            {
-                var key = Registry.CurrentUser.OpenSubKey(RegKey);
-                if (key == null)
-				{
-                    key = Registry.LocalMachine.CreateSubKey(RegKey);
-                    key.SetValue("Secret", value?.ToString() ?? String.Empty);
-				}
-            }
         }
 
         static async Task PromptSecret()
-		{
-            var key = Registry.CurrentUser.OpenSubKey(RegKey);
+        {
+            ConsoleExtension.Show();
+            string sampleUrl = Configuration["Urls"]?.Split(';')?[0] ?? String.Empty;
+            Console.WriteLine($"This program requires a secret for soft authentication.{Environment.NewLine}If your secret is <secret>, then your request URL could be:");
+            Console.WriteLine($"{sampleUrl}/<secret>{Environment.NewLine}");
+            Console.WriteLine($"You can skip this step in the future by providing a command line argument. The first one will be treated as the secret. For example:");
+            Console.WriteLine($"remotewinlauncher.exe <secret>{Environment.NewLine}");
+            Console.WriteLine($"Enter a Secret:");
+            Secret = Console.ReadLine() ?? String.Empty;
         }
+
+        static async Task ExplainSecret()
+		{
+            Console.WriteLine("Launch remotewinlauncher.exe with ");
+		}
 
         static async Task<string> HandleIt(string? secret = null)
         {
@@ -57,18 +78,28 @@ namespace remotewinlauncher
             return await Do(cts.Token, secret);
         }
 
+        static int failAttempts = 0;
         static async Task<string> Do(CancellationToken ct, string? clientsecret)
         {
-            var key = Registry.CurrentUser.OpenSubKey(RegKey);
-            var regsecret = key?.GetValue("Secret")?.ToString();
-            if (String.IsNullOrEmpty(regsecret))
+            if (String.IsNullOrEmpty(Secret))
             {
-                ConsoleExtension.Show();
-                Console.WriteLine($"Unconfigured!");
-                //TODO: collect secret and save to registry
-                return "Configuration hasn't been initialized! Use the console application window to do so.";
+				_ = Task.Run(async () => await PromptSecret());
+                return "Configuration hasn't been initialized! The console window has been made visible with instructions.";
             }
-            return "ok";
+            if (clientsecret?.Trim() != Secret?.Trim())
+            {
+                if (String.IsNullOrEmpty(clientsecret))
+                    return "no";
+                if (++failAttempts > 1000)
+				{
+                    ConsoleExtension.Show();
+                    Console.WriteLine("Seems like we're getting spammed, Cap'n. Press any key to terminate.");
+                    Console.ReadLine();
+                    Environment.Exit(0);
+				}
+                return "no";
+            }
+            return Path;
         }
 
 
