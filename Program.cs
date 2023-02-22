@@ -5,8 +5,10 @@ namespace remotewinlauncher
     public class Program
     {
         static IConfiguration? configuration;
-        public static IConfiguration Configuration { get => configuration ?? throw new Exception(); set => configuration = value; }
-        public static void Main(string[] args)
+        static IConfiguration Configuration { get => configuration ?? throw new Exception(); set => configuration = value; }
+        static string RegKey => Configuration["RegKey"];
+
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
             var app = builder.Build();
@@ -18,7 +20,30 @@ namespace remotewinlauncher
             Console.WriteLine($"Launching on {Configuration["Urls"]}");
             ConsoleExtension.Hide();
 
-            app.Run();
+            if (String.IsNullOrEmpty(Secret))
+			{
+                await PromptSecret();
+			}
+
+            await app.RunAsync();
+        }
+        static string? Secret
+        {
+            get => Registry.CurrentUser.OpenSubKey(RegKey)?.GetValue("Secret")?.ToString();
+            set
+            {
+                var key = Registry.CurrentUser.OpenSubKey(RegKey);
+                if (key == null)
+				{
+                    key = Registry.LocalMachine.CreateSubKey(RegKey);
+                    key.SetValue("Secret", value?.ToString() ?? String.Empty);
+				}
+            }
+        }
+
+        static async Task PromptSecret()
+		{
+            var key = Registry.CurrentUser.OpenSubKey(RegKey);
         }
 
         static async Task<string> HandleIt(string? secret = null)
@@ -34,15 +59,14 @@ namespace remotewinlauncher
 
         static async Task<string> Do(CancellationToken ct, string? clientsecret)
         {
-            var regkey = Configuration["RegKey"];
-            var key = Registry.CurrentUser.OpenSubKey(regkey);
+            var key = Registry.CurrentUser.OpenSubKey(RegKey);
             var regsecret = key?.GetValue("Secret")?.ToString();
             if (String.IsNullOrEmpty(regsecret))
             {
                 ConsoleExtension.Show();
                 Console.WriteLine($"Unconfigured!");
                 //TODO: collect secret and save to registry
-                return "Configuration hasn't been initialized!";
+                return "Configuration hasn't been initialized! Use the console application window to do so.";
             }
             return "ok";
         }
