@@ -54,31 +54,33 @@ namespace remotewinlauncher
 			if (HideOnStart)
 				ConsoleExtension.Hide();
 
-			app.MapGet("/launch/", HandleIt);
-			app.MapGet("/launch/{secret}", HandleIt);
+			app.MapGet("/launch/", HandleLaunch);
+			app.MapGet("/launch/{secret}", HandleLaunch);
+			app.MapGet("/kill/", HandleKill);
+			app.MapGet("/kill/{secret}", HandleKill);
 
 			await app.RunAsync();
 		}
 
-		static async Task<string> HandleIt(string? secret = null)
+		static string HandleKill(string? secret = null)
 		{
-			var cts = new CancellationTokenSource();
-			Console.CancelKeyPress += (s, e) =>
-			{
-				cts.Cancel();
-				e.Cancel = true;
-			};
-			return await Launch(cts.Token, secret);
+			if (!ValidateSecret(secret))
+				return "no";
+			return Kill();
+		}
+		static string HandleLaunch(string? secret = null)
+		{
+			if (!ValidateSecret(secret))
+				return "no";
+			return Launch();
 		}
 
-		static int failAttempts = 0;
-		static Process lastStartedProcess = null;
-		static async Task<string> Launch(CancellationToken ct, string? clientsecret)
+		static bool ValidateSecret(string? clientsecret)
 		{
 			if (clientsecret?.Trim() != Secret?.Trim())
 			{
 				if (String.IsNullOrEmpty(clientsecret))
-					return "no";
+					return false;
 				if (++failAttempts > 1000)
 				{
 					ConsoleExtension.Show();
@@ -86,8 +88,15 @@ namespace remotewinlauncher
 					Console.Read();
 					Environment.Exit(0);
 				}
-				return "no";
+				return false;
 			}
+			return true;
+		}
+
+		static int failAttempts = 0;
+		static Process lastStartedProcess = null;
+		static string Launch()
+		{
 			var result = ProcessFinder.GetHandleWindow(Title);
 			if (result != default(IntPtr))
 			{
@@ -100,6 +109,23 @@ namespace remotewinlauncher
 			}
 			lastStartedProcess = StartProcess(Path, Title);
 			return "ok";
+		}
+
+		static string Kill()
+		{
+			bool killed = false;
+			var processes = Process.GetProcesses();
+			foreach (var process in processes)
+			{
+				if (process.MainWindowTitle?.Contains(Title) ?? false)
+				{
+					process.Kill();
+					killed = true;
+				}
+			}
+			if (killed)
+				return "ded";
+			return "no alive sir";
 		}
 
 		static Process StartProcess(string path, string title)
