@@ -12,7 +12,7 @@ namespace remotewinlauncher
 		public string Path { get; set; }
 		[Option('t', "title", Required = true, HelpText = "The title of the window that will be launched. Used to ensure that a second instance won't be started.")]
 		public string Title { get; set; }
-		[Option('h', "hide", Required = false, HelpText = "If provided, hides the window on start.", Default = false)]
+		[Option('h', "hide", Required = false, HelpText = "If provided, hides the window on start. Hide is forced if the project is built with Windows Application as an output type, but doing building it that way prevents Task Scheduler from popping open a window.", Default = false)]
 		public bool HideOnStart { get; set; }
 	}
 	public class Program
